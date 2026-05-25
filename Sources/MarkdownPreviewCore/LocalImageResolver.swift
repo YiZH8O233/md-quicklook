@@ -8,10 +8,12 @@ public enum ImageResolution: Equatable {
 
 public struct LocalImageResolver {
     private let baseDirectory: URL
+    private let resolvedBaseDirectory: URL
     private let fileManager: FileManager
 
     public init(markdownFileURL: URL, fileManager: FileManager = .default) {
         self.baseDirectory = markdownFileURL.deletingLastPathComponent().standardizedFileURL
+        self.resolvedBaseDirectory = baseDirectory.resolvingSymlinksInPath()
         self.fileManager = fileManager
     }
 
@@ -22,10 +24,17 @@ public struct LocalImageResolver {
         }
 
         let candidate = baseDirectory.appendingPathComponent(rawPath).standardizedFileURL
-        guard candidate.path.hasPrefix(baseDirectory.path + "/") || candidate.path == baseDirectory.path else {
+        let resolvedCandidate = candidate.resolvingSymlinksInPath()
+        guard resolvedCandidate.path.hasPrefix(resolvedBaseDirectory.path + "/") || resolvedCandidate.path == resolvedBaseDirectory.path else {
             return .missing(rawPath)
         }
 
-        return fileManager.fileExists(atPath: candidate.path) ? .local(candidate) : .missing(rawPath)
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue else {
+            return .missing(rawPath)
+        }
+
+        return .local(candidate)
     }
 }

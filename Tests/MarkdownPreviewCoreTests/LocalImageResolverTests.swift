@@ -46,6 +46,36 @@ final class LocalImageResolverTests: XCTestCase {
         )
     }
 
+    func testRejectsSymlinkEscapingMarkdownDirectory() throws {
+        let directory = try Self.makeTemporaryDirectory()
+        let outsideDirectory = try Self.makeTemporaryDirectory()
+        let markdownURL = directory.appendingPathComponent("note.md")
+        let outsideImageURL = outsideDirectory.appendingPathComponent("secret.png")
+        let symlinkURL = directory.appendingPathComponent("linked.png")
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: outsideImageURL)
+        try FileManager.default.createSymbolicLink(
+            at: symlinkURL,
+            withDestinationURL: outsideImageURL
+        )
+
+        XCTAssertEqual(
+            LocalImageResolver(markdownFileURL: markdownURL).resolve("linked.png"),
+            .missing("linked.png")
+        )
+    }
+
+    func testTreatsDirectoryPathAsMissingImage() throws {
+        let directory = try Self.makeTemporaryDirectory()
+        let imageDirectory = directory.appendingPathComponent("images", isDirectory: true)
+        try FileManager.default.createDirectory(at: imageDirectory, withIntermediateDirectories: true)
+        let markdownURL = directory.appendingPathComponent("note.md")
+
+        XCTAssertEqual(
+            LocalImageResolver(markdownFileURL: markdownURL).resolve("images"),
+            .missing("images")
+        )
+    }
+
     private static func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
