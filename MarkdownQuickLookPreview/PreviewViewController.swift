@@ -30,21 +30,18 @@ final class PreviewViewController: NSViewController, @MainActor QLPreviewingCont
         view = scrollView
     }
 
-    func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping (Error?) -> Void) {
+    func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping @Sendable (Error?) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
                 let text = try MarkdownFileReader().readText(from: url)
-                let attributed: NSAttributedString
-
-                if PreviewLimits().shouldUseSimplifiedPreview(fileSize: fileSize) {
-                    attributed = NSAttributedString(string: text)
-                } else {
-                    let blocks = LineMarkdownParser().parse(text)
-                    attributed = NativeAttributedStringRenderer().render(blocks)
-                }
+                let blocks = PreviewLimits().shouldUseSimplifiedPreview(fileSize: fileSize)
+                    ? nil
+                    : LineMarkdownParser().parse(text)
 
                 DispatchQueue.main.async {
+                    let attributed = blocks.map { NativeAttributedStringRenderer().render($0) }
+                        ?? NSAttributedString(string: text)
                     self.textView.textStorage?.setAttributedString(attributed)
                     handler(nil)
                 }
