@@ -31,4 +31,26 @@ final class NativeAttributedStringRendererTests: XCTestCase {
         let font = try XCTUnwrap(output.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
         XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.monoSpace))
     }
+
+    func testUsesMonospacedFontForTables() throws {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .table(["| A | B |", "| 1 | 2 |"])
+        ])
+
+        let font = try XCTUnwrap(output.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.monoSpace))
+    }
+
+    func testDoesNotTreatLocalPathStartingWithHTTPAsRemote() {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .image(alt: "Local", path: "http-image.png")
+        ])
+
+        XCTAssertTrue(output.string.contains("Image: Local"))
+        XCTAssertFalse(output.string.contains("Remote image not loaded"))
+    }
 }

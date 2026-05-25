@@ -34,7 +34,9 @@ public struct NativeAttributedStringRenderer {
                 }
                 result.append(NSAttributedString(string: "\n"))
             case let .image(alt, path):
-                let label = path.lowercased().hasPrefix("http")
+                let lowercasePath = path.lowercased()
+                let isRemote = lowercasePath.hasPrefix("http://") || lowercasePath.hasPrefix("https://")
+                let label = isRemote
                     ? "Remote image not loaded: \(path)"
                     : "Image: \(alt.isEmpty ? path : alt)"
                 result.append(line(
@@ -44,17 +46,17 @@ public struct NativeAttributedStringRenderer {
                     spacing: 8
                 ))
             case let .codeBlock(_, code):
-                result.append(line(
+                result.append(textBlock(
                     code,
                     font: .monospacedSystemFont(ofSize: 13, weight: .regular),
                     color: .labelColor,
-                    spacing: 10
+                    spacingAfter: 10
                 ))
             case let .table(lines):
-                result.append(line(
+                result.append(textBlock(
                     lines.joined(separator: "\n"),
                     font: .monospacedSystemFont(ofSize: 13, weight: .regular),
-                    spacing: 10
+                    spacingAfter: 10
                 ))
             }
         }
@@ -91,5 +93,28 @@ private extension NativeAttributedStringRenderer {
                 .paragraphStyle: paragraph
             ]
         )
+    }
+
+    func textBlock(
+        _ text: String,
+        font: NSFont,
+        color: NSColor = .labelColor,
+        spacingAfter: CGFloat
+    ) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 2
+
+        let result = NSMutableAttributedString(
+            string: text + "\n",
+            attributes: [
+                .font: font,
+                .foregroundColor: color,
+                .paragraphStyle: paragraph
+            ]
+        )
+        let spacer = NSMutableParagraphStyle()
+        spacer.paragraphSpacing = spacingAfter
+        result.append(NSAttributedString(string: "\n", attributes: [.paragraphStyle: spacer]))
+        return result
     }
 }
