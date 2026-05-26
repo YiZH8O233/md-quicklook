@@ -1,5 +1,7 @@
 # Markdown Quick Look
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A lightweight native macOS Quick Look preview extension for Markdown files.
 
 Select a `.md` or `.markdown` file in Finder, press Space, and preview it without opening a full editor.
