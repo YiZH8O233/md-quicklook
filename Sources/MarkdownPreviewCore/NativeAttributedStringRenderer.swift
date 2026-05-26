@@ -69,6 +69,8 @@ public struct NativeAttributedStringRenderer {
                     color: .labelColor,
                     spacingAfter: 10
                 ))
+            case .thematicBreak:
+                result.append(thematicBreak())
             case let .table(table):
                 result.append(tableBlock(table))
             }
@@ -76,10 +78,25 @@ public struct NativeAttributedStringRenderer {
 
         return result
     }
+
+    public func renderPlainText(_ text: String) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineSpacing = 2
+        paragraph.paragraphSpacing = 6
+
+        return NSAttributedString(
+            string: plainPreviewText(text),
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 14),
+                .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: paragraph
+            ]
+        )
+    }
 }
 
 private extension NativeAttributedStringRenderer {
-    func displayText(_ text: String) -> String {
+    func plainPreviewText(_ text: String) -> String {
         var output = text
         while let start = output.range(of: ""),
               let end = output[start.upperBound...].range(of: "") {
@@ -87,7 +104,15 @@ private extension NativeAttributedStringRenderer {
             let marker = String(output[markerRange])
             output.replaceSubrange(markerRange, with: replacement(forMarker: marker))
         }
+        output = output.replacingOccurrences(of: "\\*\\*", with: "**")
+        output = output.replacingOccurrences(of: "\\_\\_", with: "__")
+        output = output.replacingOccurrences(of: " ()", with: "")
+        output = output.replacingOccurrences(of: "()", with: "")
         return output
+    }
+
+    func displayText(_ text: String) -> String {
+        return plainPreviewText(text)
             .replacingOccurrences(of: "  ", with: " ")
             .trimmingCharacters(in: .whitespaces)
     }
@@ -243,6 +268,15 @@ private extension NativeAttributedStringRenderer {
         spacer.paragraphSpacing = spacingAfter
         result.append(NSAttributedString(string: "\n", attributes: [.paragraphStyle: spacer]))
         return result
+    }
+
+    func thematicBreak() -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.paragraphSpacing = 12
+        return NSAttributedString(string: "\n", attributes: [
+            .font: NSFont.systemFont(ofSize: 1),
+            .paragraphStyle: paragraph
+        ])
     }
 
     func tableBlock(_ table: MarkdownTable) -> NSAttributedString {

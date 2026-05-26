@@ -19,6 +19,12 @@ public struct LineMarkdownParser {
                 continue
             }
 
+            if Self.isThematicBreak(trimmed) {
+                blocks.append(.thematicBreak)
+                index += 1
+                continue
+            }
+
             if trimmed.hasPrefix("```") {
                 let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 var codeLines: [String] = []
@@ -91,7 +97,15 @@ public struct LineMarkdownParser {
             index += 1
             while index < lines.count {
                 let next = lines[index].trimmingCharacters(in: .whitespaces)
+                if paragraphLines.count == 1,
+                   let headingLevel = Self.setextHeadingLevel(next) {
+                    blocks.append(.heading(level: headingLevel, text: paragraphLines[0]))
+                    index += 1
+                    paragraphLines.removeAll()
+                    break
+                }
                 if next.isEmpty ||
+                    Self.isThematicBreak(next) ||
                     next.hasPrefix("#") ||
                     next.hasPrefix(">") ||
                     next.hasPrefix("```") ||
@@ -103,6 +117,9 @@ public struct LineMarkdownParser {
                 }
                 paragraphLines.append(next)
                 index += 1
+            }
+            if paragraphLines.isEmpty {
+                continue
             }
             blocks.append(.paragraph(paragraphLines.joined(separator: " ")))
         }
@@ -136,6 +153,29 @@ private extension LineMarkdownParser {
 
     static func isUnorderedListItem(_ line: String) -> Bool {
         line.hasPrefix("- ") || line.hasPrefix("* ")
+    }
+
+    static func isThematicBreak(_ line: String) -> Bool {
+        let characters = line.filter { !$0.isWhitespace }
+        guard characters.count >= 3,
+              let marker = characters.first,
+              marker == "*" || marker == "-" || marker == "_" else {
+            return false
+        }
+        return characters.allSatisfy { $0 == marker }
+    }
+
+    static func setextHeadingLevel(_ line: String) -> Int? {
+        let characters = line.filter { !$0.isWhitespace }
+        guard characters.count >= 2,
+              let marker = characters.first,
+              marker == "=" || marker == "-" else {
+            return nil
+        }
+        guard characters.allSatisfy({ $0 == marker }) else {
+            return nil
+        }
+        return marker == "=" ? 1 : 2
     }
 
     static func orderedListText(_ line: String) -> String? {

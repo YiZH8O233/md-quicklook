@@ -4,6 +4,7 @@ import QuickLookUI
 final class PreviewViewController: NSViewController, @MainActor QLPreviewingController {
     private let textView = NSTextView()
     private let scrollView = NSScrollView()
+    private var previewGenerationGate = PreviewGenerationGate()
 
     override func loadView() {
         scrollView.hasVerticalScroller = true
@@ -31,22 +32,38 @@ final class PreviewViewController: NSViewController, @MainActor QLPreviewingCont
     }
 
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping @Sendable (Error?) -> Void) {
+        let generation = previewGenerationGate.startNewRequest()
+
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
                 let text = try MarkdownFileReader().readText(from: url)
-                let blocks = PreviewLimits().shouldUseSimplifiedPreview(fileSize: fileSize)
-                    ? nil
-                    : LineMarkdownParser().parse(text)
+                let previewMode = PreviewLimits().previewMode(fileSize: fileSize)
+                let blocks = previewMode == .styledMarkdown ? LineMarkdownParser().parse(text) : nil
 
                 DispatchQueue.main.async {
-                    let attributed = blocks.map { NativeAttributedStringRenderer().render($0) }
-                        ?? NSAttributedString(string: text)
+                    guard self.previewGenerationGate.isCurrent(generation) else {
+                        handler(nil)
+                        return
+                    }
+
+                    let renderer = NativeAttributedStringRenderer()
+                    let attributed: NSAttributedString
+                    if let blocks {
+                        attributed = renderer.render(blocks)
+                    } else {
+                        attributed = renderer.renderPlainText(text)
+                    }
                     self.textView.textStorage?.setAttributedString(attributed)
                     handler(nil)
                 }
             } catch {
                 DispatchQueue.main.async {
+                    guard self.previewGenerationGate.isCurrent(generation) else {
+                        handler(nil)
+                        return
+                    }
+
                     self.textView.string = "This Markdown file could not be previewed."
                     handler(nil)
                 }

@@ -65,4 +65,39 @@ final class LineMarkdownParserTests: XCTestCase {
             ))
         ])
     }
+
+    func testParsesThematicBreaksBeforeUnorderedLists() {
+        let markdown = """
+        Intro
+
+        * * *
+
+        - Real list item
+        """
+
+        let blocks = LineMarkdownParser().parse(markdown)
+
+        XCTAssertEqual(blocks, [
+            .paragraph("Intro"),
+            .thematicBreak,
+            .unorderedList(["Real list item"])
+        ])
+    }
+
+    func testParsesSetextHeadingsWithoutExposingUnderlineMarkers() {
+        let markdown = """
+        Main title
+        ==========
+
+        Section title
+        -------------
+        """
+
+        let blocks = LineMarkdownParser().parse(markdown)
+
+        XCTAssertEqual(blocks, [
+            .heading(level: 1, text: "Main title"),
+            .heading(level: 2, text: "Section title")
+        ])
+    }
 }

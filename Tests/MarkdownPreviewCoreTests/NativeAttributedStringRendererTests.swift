@@ -67,6 +67,22 @@ final class NativeAttributedStringRendererTests: XCTestCase {
         XCTAssertEqual(effectiveRange.length, boldRange.length)
     }
 
+    func testRendersEscapedInlineBoldWithoutMarkdownMarkers() throws {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .paragraph("\\*\\*我眼里的影石\\*\\*是一家科技品牌")
+        ])
+
+        XCTAssertEqual(output.string, "我眼里的影石是一家科技品牌\n")
+        XCTAssertFalse(output.string.contains("\\*\\*"))
+        XCTAssertFalse(output.string.contains("**"))
+
+        let boldRange = (output.string as NSString).range(of: "我眼里的影石")
+        let font = try XCTUnwrap(output.attribute(.font, at: boldRange.location, effectiveRange: nil) as? NSFont)
+        XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.bold))
+    }
+
     func testTablesUseNativeTextTableBlocks() throws {
         let renderer = NativeAttributedStringRenderer()
 
@@ -190,6 +206,54 @@ final class NativeAttributedStringRendererTests: XCTestCase {
 
         XCTAssertTrue(output.string.contains("Image: Local"))
         XCTAssertFalse(output.string.contains("Remote image not loaded"))
+    }
+
+    func testRendersThematicBreakWithoutMarkdownMarkers() {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .paragraph("Before"),
+            .thematicBreak,
+            .paragraph("After")
+        ])
+
+        XCTAssertTrue(output.string.contains("Before"))
+        XCTAssertTrue(output.string.contains("After"))
+        XCTAssertFalse(output.string.contains("* * *"))
+        XCTAssertFalse(output.string.contains("- * *"))
+    }
+
+    func testHidesEmptyReferenceParentheses() {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .paragraph("公开报道显示，消息已经披露。 ()")
+        ])
+
+        XCTAssertEqual(output.string, "公开报道显示，消息已经披露。\n")
+    }
+
+    func testPlainTextPreviewKeepsFullMarkdownWithoutNativeTableLayout() throws {
+        let renderer = NativeAttributedStringRenderer()
+        let markdown = """
+        # Title
+
+        | 产品 | 公司 |
+        | --- | --- |
+        | ChatGPT | OpenAI |
+
+        Final line
+        """
+
+        let output = renderer.renderPlainText(markdown)
+
+        XCTAssertTrue(output.string.contains("# Title"))
+        XCTAssertTrue(output.string.contains("| 产品 | 公司 |"))
+        XCTAssertTrue(output.string.contains("Final line"))
+        XCTAssertTrue(tableBlocks(in: output).isEmpty)
+
+        let font = try XCTUnwrap(output.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        XCTAssertFalse(font.fontDescriptor.symbolicTraits.contains(.monoSpace))
     }
 
     private func tableBlocks(in output: NSAttributedString) -> [NSTextTableBlock] {

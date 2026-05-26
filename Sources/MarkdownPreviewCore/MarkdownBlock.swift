@@ -30,5 +30,6 @@ public enum MarkdownBlock: Equatable {
     case orderedList([String])
     case image(alt: String, path: String)
     case codeBlock(language: String?, code: String)
+    case thematicBreak
     case table(MarkdownTable)
 }
