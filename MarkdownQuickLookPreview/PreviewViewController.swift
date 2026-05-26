@@ -4,16 +4,13 @@ import QuickLookUI
 final class PreviewViewController: NSViewController, @MainActor QLPreviewingController {
     private let textView = NSTextView()
     private let scrollView = NSScrollView()
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
+    private var lastLaidOutViewportSize: NSSize = .zero
+    private var isResizeRefreshScheduled = false
 
     override func loadView() {
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .textBackgroundColor
-        scrollView.contentView.postsBoundsChangedNotifications = true
 
         textView.isEditable = false
         textView.isSelectable = true
@@ -33,18 +30,11 @@ final class PreviewViewController: NSViewController, @MainActor QLPreviewingCont
 
         scrollView.documentView = textView
         view = scrollView
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(scrollViewBoundsDidChange),
-            name: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView
-        )
     }
 
     override func viewDidLayout() {
         super.viewDidLayout()
-        refreshTextLayout()
+        refreshTextLayoutAfterViewportResize()
     }
 
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping @Sendable (Error?) -> Void) {
@@ -60,12 +50,14 @@ final class PreviewViewController: NSViewController, @MainActor QLPreviewingCont
                     let attributed = blocks.map { NativeAttributedStringRenderer().render($0) }
                         ?? NSAttributedString(string: text)
                     self.textView.textStorage?.setAttributedString(attributed)
+                    self.lastLaidOutViewportSize = self.scrollView.contentSize
                     self.refreshTextLayout()
                     handler(nil)
                 }
             } catch {
                 DispatchQueue.main.async {
                     self.textView.string = "This Markdown file could not be previewed."
+                    self.lastLaidOutViewportSize = self.scrollView.contentSize
                     self.refreshTextLayout()
                     handler(nil)
                 }
@@ -73,10 +65,18 @@ final class PreviewViewController: NSViewController, @MainActor QLPreviewingCont
         }
     }
 
-    @objc private func scrollViewBoundsDidChange() {
-        refreshTextLayout()
+    private func refreshTextLayoutAfterViewportResize() {
+        let viewportSize = scrollView.contentSize
+        guard viewportSize != lastLaidOutViewportSize else { return }
+
+        lastLaidOutViewportSize = viewportSize
+        guard !isResizeRefreshScheduled else { return }
+        isResizeRefreshScheduled = true
+
         DispatchQueue.main.async { [weak self] in
-            self?.refreshTextLayout()
+            guard let self else { return }
+            self.isResizeRefreshScheduled = false
+            self.refreshTextLayout()
         }
     }
 
