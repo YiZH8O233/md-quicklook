@@ -250,7 +250,7 @@ private extension NativeAttributedStringRenderer {
         let columnCount = tableColumnCount(for: table)
         let textTable = NSTextTable()
         textTable.numberOfColumns = columnCount
-        textTable.layoutAlgorithm = .automaticLayoutAlgorithm
+        textTable.layoutAlgorithm = .fixedLayoutAlgorithm
         textTable.collapsesBorders = true
         textTable.hidesEmptyCells = false
         textTable.setContentWidth(100, type: .percentageValueType)
@@ -304,6 +304,7 @@ private extension NativeAttributedStringRenderer {
                 textTable: textTable,
                 rowIndex: rowIndex,
                 columnIndex: columnIndex,
+                columnCount: columnCount,
                 alignment: columnIndex < alignments.count ? alignments[columnIndex] : .left,
                 isHeader: isHeader
             )
@@ -326,6 +327,7 @@ private extension NativeAttributedStringRenderer {
         textTable: NSTextTable,
         rowIndex: Int,
         columnIndex: Int,
+        columnCount: Int,
         alignment: MarkdownTable.Alignment,
         isHeader: Bool
     ) -> NSParagraphStyle {
@@ -336,6 +338,7 @@ private extension NativeAttributedStringRenderer {
             startingColumn: columnIndex,
             columnSpan: 1
         )
+        block.setContentWidth(100 / CGFloat(columnCount), type: .percentageValueType)
         block.setWidth(7, type: .absoluteValueType, for: .padding)
         block.verticalAlignment = .topAlignment
         if isHeader {

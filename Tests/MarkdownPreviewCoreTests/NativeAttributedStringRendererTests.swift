@@ -139,6 +139,28 @@ final class NativeAttributedStringRendererTests: XCTestCase {
         XCTAssertEqual(tableBlock.width(for: .border, edge: .maxY), 0)
     }
 
+    func testTablesUseFixedEqualWidthColumns() throws {
+        let renderer = NativeAttributedStringRenderer()
+
+        let output = renderer.render([
+            .table(MarkdownTable(
+                headers: ["IP 层级", "含义", "用户感受", "营销价值"],
+                rows: [[
+                    "玩家自嘲梗",
+                    "打农药的民间称呼被官方转译",
+                    "亲切、懂梗、不端着",
+                    "拉近官方与玩家距离"
+                ]]
+            ))
+        ])
+
+        let paragraph = try XCTUnwrap(output.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        let tableBlock = try XCTUnwrap(paragraph.textBlocks.first as? NSTextTableBlock)
+        XCTAssertEqual(tableBlock.table.layoutAlgorithm, .fixedLayoutAlgorithm)
+        XCTAssertEqual(tableBlock.contentWidthValueType, .percentageValueType)
+        XCTAssertEqual(tableBlock.contentWidth, 25, accuracy: 0.01)
+    }
+
     func testHidesResearchCitationMarkersAndKeepsEntityNames() {
         let renderer = NativeAttributedStringRenderer()
 
